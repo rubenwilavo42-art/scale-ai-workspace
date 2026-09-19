@@ -1,0 +1,144 @@
+/* ScalAI brand layer — matches the public ScalAI site.
+ * Poppins is the product UI face. The terminal/editor intentionally keep their
+ * monospace faces so agent output remains dense and readable.
+ */
+:root {
+  --scalai-accent: #ff5a52;
+  --scalai-accent-hover: #f04d45;
+  --scalai-light-bg: #f8f7f3;
+  --scalai-light-surface: #ffffff;
+  --scalai-dark-bg: #18060e;
+  --scalai-dark-surface: #241019;
+  --scalai-dark-ink: #fbeff4;
+  --scalai-radius-card: 16px;
+  --scalai-radius-button: 12px;
+}
+
+/* Poppins is deliberately first: if it is bundled later, the whole desktop
+   picks it up without another CSS migration. */
+html, body, button, input, textarea, select {
+  font-family: 'Poppins', ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+}
+
+body[data-theme="glass"], body:not([data-theme]) {
+  background: var(--scalai-light-bg);
+}
+
+body[data-theme="dusk"] {
+  background: var(--scalai-dark-bg);
+}
+
+/* Keep the product accent stable across both themes. */
+.btn--go,
+.btn--go:hover,
+.lc-chat,
+.add-card:hover,
+.picker-row--new {
+  --scalai-action: var(--scalai-accent);
+}
+
+.btn--go {
+  border-radius: var(--scalai-radius-button);
+}
+
+/* Cards/panels inherit the site's softer geometry. */
+.card, .panel, .session-card, .picker-box, .add-card,
+.library-card, .settings-card {
+  border-radius: var(--scalai-radius-card);
+}
+
+/* Never let the brand face leak into xterm or code editors. */
+.xterm, .xterm *, .term, pre, code, .editor, .cm-editor {
+  font-family: var(--term-font, 'SF Mono', ui-monospace, Menlo, monospace);
+}
+
+/* Session lifecycle control: the workspace always exposes stop/restart without
+   competing with zoom, dictation and close. It stays compact enough for narrow
+   tiles and uses the same action language as the ScalAI site. */
+.t-session-control { color: var(--muted); }
+.t-session-control:not(:disabled):hover { color: var(--scalai-accent); border-color: color-mix(in srgb, var(--scalai-accent) 55%, transparent); }
+.t-session-control.is-restart { font-weight: 700; }
+.t-session-control:disabled { opacity: .45; cursor: default; }
+
+/* A running session is a workstation, not a document: keep lifecycle actions
+   visually subordinate to the session itself while retaining a clear hit area. */
+.t-session-control { border-radius: 10px; }
+
+/* ---- multi-agent workspace strip --------------------------------------- */
+.workspace-strip {
+  flex: none;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  margin: 10px 12px 0;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  border-radius: var(--scalai-radius-card);
+  background: color-mix(in srgb, var(--paper) 94%, var(--scalai-accent) 6%);
+  box-shadow: 0 5px 18px rgba(24,6,14,.045);
+  overflow: hidden;
+  font-family: 'Poppins', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.workspace-strip-main { display:flex; align-items:center; gap:8px; min-width:0; flex:none; }
+.workspace-strip-label { font-size:11px; font-weight:700; color:var(--ink); white-space:nowrap; }
+.workspace-strip-path { max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; color:var(--muted); }
+.workspace-strip-count { font-size:10px; color:var(--muted-2); white-space:nowrap; }
+.workspace-strip-agents { display:flex; align-items:center; gap:6px; min-width:0; overflow:auto hidden; scrollbar-width:none; }
+.workspace-strip-agents::-webkit-scrollbar { display:none; }
+.workspace-agent-chip { display:inline-flex; align-items:center; gap:6px; min-width:0; height:30px; padding:0 9px 0 6px; border:1px solid var(--dash); border-radius:999px; background:var(--paper); color:var(--ink); cursor:pointer; font:inherit; }
+.workspace-agent-chip:hover, .workspace-agent-chip.active { border-color:color-mix(in srgb, var(--scalai-accent) 52%, transparent); background:color-mix(in srgb, var(--paper) 88%, var(--scalai-accent) 12%); }
+.workspace-agent-icon { width:20px; height:20px; display:grid; place-items:center; border-radius:7px; background:var(--hover); flex:none; font-size:8px; font-weight:800; overflow:hidden; }
+.workspace-agent-icon svg { width:13px; height:13px; display:block; }
+.workspace-agent-name { max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10.5px; font-weight:600; }
+.workspace-agent-state { width:6px; height:6px; border-radius:50%; background:var(--scalai-accent); flex:none; }
+.workspace-agent-chip.active .workspace-agent-state { box-shadow:0 0 0 3px color-mix(in srgb, var(--scalai-accent) 16%, transparent); }
+.workspace-agent-chip.terminee .workspace-agent-state { background:var(--muted-2); }
+.workspace-agent-chip.attention .workspace-agent-state { background:var(--amber-ink); box-shadow:0 0 0 3px color-mix(in srgb, var(--amber-ink) 14%, transparent); }
+.workspace-strip-actions { margin-left:auto; flex:none; }
+.workspace-strip-add { width:30px; height:30px; border:1px solid var(--dash); border-radius:999px; background:var(--paper); color:var(--ink); cursor:pointer; font:inherit; }
+.workspace-strip-add:hover { color:var(--scalai-accent); border-color:color-mix(in srgb, var(--scalai-accent) 52%, transparent); }
+@media (max-width:760px) {
+  .workspace-strip { margin:8px 8px 0; gap:8px; }
+  .workspace-strip-path, .workspace-strip-count { display:none; }
+  .workspace-agent-name { max-width:86px; }
+}
+
+/* Legacy paper rules may specify Caveat/Courier for headings. ScalAI's desktop
+   product UI is intentionally Poppins; terminal/editor remain monospace. */
+body .brand-name,
+body .rail-head .title,
+body .lane-empty .big,
+body .card-head .goal,
+body .approval .title,
+body .stopped .title,
+body .artifacts .title,
+body .modal-head .title,
+body .qs-head .title {
+  font-family: 'Poppins', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Multi-agent comparison: selected live sessions become a focused desk while
+   non-selected tiles stay mounted (and therefore keep their PTY alive). */
+.workspace-strip-actions { display:flex; align-items:center; gap:6px; }
+.workspace-strip-compare { height:30px; padding:0 11px; border:1px solid var(--dash); border-radius:999px; background:var(--paper); color:var(--ink); cursor:pointer; font:600 10px/1 'Poppins', sans-serif; }
+.workspace-strip-compare:hover { color:var(--scalai-accent); border-color:color-mix(in srgb, var(--scalai-accent) 52%, transparent); background:color-mix(in srgb, var(--paper) 88%, var(--scalai-accent) 12%); }
+.compare-recipients { display:grid; gap:7px; }
+.compare-recipient { display:grid; grid-template-columns:18px 28px minmax(0,1fr) auto; align-items:center; gap:9px; padding:9px 10px; border:1px solid var(--dash); border-radius:var(--scalai-radius-card); background:var(--paper); cursor:pointer; }
+.compare-recipient:hover { border-color:color-mix(in srgb, var(--scalai-accent) 42%, transparent); }
+.compare-recipient-icon { width:28px; height:28px; display:grid; place-items:center; border-radius:8px; background:var(--hover); overflow:hidden; }
+.compare-recipient-icon svg { width:16px; height:16px; }
+.compare-recipient span:nth-child(3) { min-width:0; display:grid; gap:2px; }
+.compare-recipient strong { font:600 11px/1.2 'Poppins', sans-serif; color:var(--ink); }
+.compare-recipient small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 9px/1.2 'Poppins', sans-serif; color:var(--muted); }
+.compare-recipient-state { font:500 9px/1 'Poppins', sans-serif; color:var(--muted); }
+.modal--agent-compare { width:min(560px, calc(100vw - 32px)); }
+.grid.compare-mode { grid-template-columns:repeat(var(--compare-cols, 2), minmax(0,1fr)); grid-auto-rows:minmax(0,1fr); align-content:stretch; }
+.grid.compare-mode .tile.compare-tile { display:flex; grid-column:span 1; grid-row:span 1; min-height:0; height:auto; box-shadow:4px 5px 0 var(--shadow-soft); }
+.grid.compare-mode .tile.compare-hidden { display:none; }
+.grid.compare-mode .tile.compare-tile .tile-grip { display:none; }
+.grid.compare-mode .tile.compare-tile.active { box-shadow:4px 5px 0 var(--shadow-mid), 0 0 0 1.5px color-mix(in srgb, var(--scalai-accent) 55%, transparent); }
+@media (max-width:900px) {
+  .grid.compare-mode { grid-template-columns:1fr; grid-auto-rows:minmax(0,1fr); }
+}

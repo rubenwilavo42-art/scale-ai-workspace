@@ -1,0 +1,5 @@
+ScalAI est un dérivé de Nami (mrdainami/nami), utilisé conformément à la licence Apache 2.0 du projet source.
+
+Le code source de Nami est Copyright 2026 Dainami Pte Ltd. ScalAI modifie notamment le nom du produit, l’identité applicative et la langue de l’interface. Les avis de copyright et les conditions de la licence Apache 2.0 du projet source sont conservés dans LICENSE.
+
+ScalAI n’est pas le produit officiel de Dainami Pte Ltd.

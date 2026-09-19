@@ -1,0 +1,59 @@
+{
+  "name": "scalai",
+  "productName": "ScalAI",
+  "version": "1.9.0",
+  "description": "ScalAI — espace de travail desktop pour agents IA locaux",
+  "main": "src/main/main.js",
+  "author": "sacalai.vatsk.rub",
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "electron .",
+    "build:markdown-editor": "node scripts/build-markdown-editor.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "shot": "electron . --demo --screenshot shots/app.png",
+    "fetch-model": "node scripts/fetch-model.mjs",
+    "prepack": "npm run fetch-model",
+    "pack": "electron-builder --dir",
+    "pack:review": "electron-builder --config electron-builder.review.yml --dir --mac --arm64 --publish never",
+    "dist:review": "npm run fetch-model && electron-builder --config electron-builder.review.yml --mac --arm64 --x64 --publish never",
+    "prepack:review": "npm run fetch-model",
+    "postpack:review": "codesign --force --deep --sign - \"release-review/mac-arm64/ScalAI Review.app\"",
+    "check-bundle": "node scripts/check-bundle.mjs",
+    "//dist": "predist matters: npm runs pre<name> for any script, so `pack` picked up the weights via prepack while `dist` — the one that builds what users install — quietly shipped without them.",
+    "predist": "npm run fetch-model",
+    "dist": "electron-builder --publish never && npm run fix-update-metadata",
+    "fix-update-metadata": "node scripts/fix-update-metadata.mjs",
+    "install-local": "node scripts/install-local.mjs",
+    "//dist2": "publish never is baked in, not passed: npm appends `-- args` to the end of the whole script string, so with a chained script the flag lands on fix-update-metadata and electron-builder tries to publish anyway. Uploading is a separate step so the update metadata can be corrected first.",
+    "check:security": "node scripts/check-security.mjs",
+    "test:core": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "3.8.1",
+    "@lydell/node-pty": "^1.2.0-beta.14",
+    "@modelcontextprotocol/sdk": "1.27.1",
+    "@playwright/mcp": "0.0.80",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "electron-updater": "^6.8.9",
+    "onnxruntime-node": "1.21.0",
+    "sharp": "0.35.4",
+    "ws": "8.21.3",
+    "yauzl": "3.4.0"
+  },
+  "devDependencies": {
+    "@milkdown/crepe": "^7.22.1",
+    "@xterm/addon-webgl": "^0.19.0",
+    "electron": "43.7.3",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "js-yaml": "4.3.2",
+    "marked": "18.0.11"
+  },
+  "//deps": "transformers and onnxruntime-node are pinned exactly on purpose: a v3→v4 transformers bump swaps the tokenizer and the wasm-vendoring story, and onnxruntime-node's prebuilt-binary layout moves between napi generations. Re-pin deliberately, never by caret drift. Packaging lives in electron-builder.yml.",
+  "overrides": {
+    "@huggingface/transformers": {
+      "sharp": "$sharp"
+    }
+  }
+}

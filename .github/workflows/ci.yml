@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  core-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  macos-validation:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run check:security
+      - name: Build unsigned macOS review artifacts (arm64 + x64)
+        run: npm run dist:review
+      - run: node scripts/check-bundle.mjs
+      - name: Upload macOS review artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: scalai-macos-review
+          path: |
+            release-review/*.dmg
+            release-review/*.zip
+            release-review/*.blockmap
+          if-no-files-found: error
