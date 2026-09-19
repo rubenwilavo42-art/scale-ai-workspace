@@ -159,7 +159,7 @@ test('every url the menu opens is https, and only the repo is opened twice', () 
 // The repo links are deliberately bare — GitHub is not where the analytics is.
 test('the site links carry a help-menu utm; the github ones stay clean', () => {
   for (const key of ['teams', 'maker', 'docs', 'terms']) {
-    assert.match(LINKS[key], /utm_source=nami-app&utm_medium=help-menu/, `${key} has no utm`);
+    assert.match(LINKS[key], /utm_source=scalai-app&utm_medium=help-menu/, `${key} has no utm`);
   }
   assert.match(LINKS.teams, /utm_campaign=teams/);
   for (const key of ['repo', 'issue', 'releases']) {

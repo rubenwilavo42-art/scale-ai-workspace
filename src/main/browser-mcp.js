@@ -200,6 +200,6 @@ async function createBrowserMcp({ access, views, create, remove, send, notifyMes
     },
     isConnected: (id) => [...routes.values()].some((r) => r.id === id && r.connected && !r.revoked),
     status: (id) => { const r = [...routes.values()].find(r => r.id === id && !r.revoked); return { initialized: !!r?.connected, initializedAt: r?.initializedAt || null, activities: Object.values(r?.activity || {}) }; },
-    refresh, revoke, close: async () => { for (const route of [...routes.values()]) await revoke(route.id); server.closeAllConnexions(); server.close(); } };
+    refresh, revoke, close: async () => { for (const route of [...routes.values()]) await revoke(route.id); server.closeAllConnections?.(); server.close(); } };
 }
 module.exports = { createBrowserMcp, ALLOWED_TOOLS };

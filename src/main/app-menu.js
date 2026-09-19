@@ -19,8 +19,8 @@
 // (no electron import, so `node --test` can check it), and one thin function
 // that hands the result to Electron.
 
-const REPO = process.env.SCALAI_REPO_URL || '';
-const SITE = process.env.SCALAI_SITE_URL || '';
+const REPO = process.env.SCALAI_REPO_URL || 'https://github.com/sacalai/scalai';
+const SITE = process.env.SCALAI_SITE_URL || 'https://scalai.app';
 
 // Where the app sends people, and how those visits are told apart later.
 //
@@ -37,10 +37,10 @@ const LINKS = {
   repo: REPO,
   issue: `${REPO}/issues/new`,
   releases: `${REPO}/releases`,
-  docs: SITE ? `${SITE}/docs?utm_source=scalai-app&utm_medium=help-menu` : '',
-  terms: SITE ? `${SITE}/terms?utm_source=scalai-app&utm_medium=help-menu` : '',
-  teams: SITE ? `${SITE}/teams?utm_source=scalai-app&utm_medium=help-menu&utm_campaign=teams` : '',
-  maker: SITE ? `${SITE}/links?utm_source=scalai-app&utm_medium=help-menu` : '',
+  docs: `${SITE}/docs?utm_source=scalai-app&utm_medium=help-menu`,
+  terms: `${SITE}/terms?utm_source=scalai-app&utm_medium=help-menu`,
+  teams: `${SITE}/contact?utm_source=scalai-app&utm_medium=help-menu&utm_campaign=teams`,
+  maker: `${SITE}/links?utm_source=scalai-app&utm_medium=help-menu`,
 };
 
 // Every command a menu item can send, by its base name. A command is a string
@@ -206,7 +206,7 @@ function buildMenuTemplate({
     link('Release Notes', LINKS.releases),
     SEP,
     link('ScalAI for Your Team', LINKS.teams),
-    link('Conçu par sacalai.vatsk.rub', LINKS.maker),
+    link('Made by Cal', LINKS.maker),
     SEP,
     link('Terms', LINKS.terms),
     ...(mac ? [] : [SEP, cmd('About ScalAI', 'about'), cmd('Check for Updates', 'update-check')]),
@@ -229,6 +229,7 @@ function menuItems(template) {
   const out = [];
   const walk = (items) => {
     for (const item of items || []) {
+      if (!item) continue;
       out.push(item);
       if (item.submenu) walk(item.submenu);
     }
