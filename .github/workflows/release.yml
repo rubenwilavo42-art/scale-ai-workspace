@@ -1,15 +1,19 @@
-# Tag a review build and publish its unsigned macOS artifacts as a prerelease.
+# Publish unsigned review artifacts for every push to main: a macOS build and
+# a Windows build, both landing on the same rolling prerelease. Signing is a
+# deliberate later step, not a blocker to shipping something people can run.
 name: release
 
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  build:
+  build-mac:
     runs-on: macos-14
-    permissions:
-      contents: write
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -32,13 +36,67 @@ jobs:
       - name: Check the packaged bundle
         run: node scripts/check-bundle.mjs
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-mac
+          path: |
+            release-review/*.dmg
+            release-review/*.zip
+            release-review/*.blockmap
+          if-no-files-found: error
+
+  build-win:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Build unsigned Windows review artifacts
+        run: npm run dist:review:win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-win
+          path: |
+            release-review/*.exe
+            release-review/*.blockmap
+          if-no-files-found: error
+
+  publish:
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      # A single rolling tag, moved to the pushed commit on every run, so
+      # "à chaque modification" doesn't grow a release per commit forever.
+      # The tag is force-pushed and the previous release under it replaced.
       - name: Publish the unsigned test prerelease
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
+          gh release delete continuous --repo ${{ github.repository }} --yes --cleanup-tag || true
+          gh release create continuous \
             --repo ${{ github.repository }} \
             --prerelease \
-            --title "ScalAI ${GITHUB_REF_NAME}" \
-            --notes "Unsigned macOS test build for ${GITHUB_REF_NAME}." \
-            release-review/*.dmg release-review/*.zip release-review/*.blockmap
+            --title "ScalAI (continuous build)" \
+            --notes "Unsigned macOS + Windows test build from ${{ github.sha }}." \
+            --target "${{ github.sha }}" \
+            dist/*.dmg dist/*.zip dist/*.exe dist/*.blockmap
