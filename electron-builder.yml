@@ -14,17 +14,18 @@ directories:
 
 # Release hosting is intentionally handled by CI rather than embedded in the app.
 # The installed app never contains a GitHub token or repository credential.
-#
-# The onnxruntime-node trim below used to live here unconditionally, stripping
-# win32 out of every build regardless of target platform. That's harmless for a
-# Mac-only build but fatal for a Windows one: the app would ship without the
-# native binary it dlopens at runtime and crash on first inference. Each
-# platform's own onnxruntime-node slice now lives in that platform's `files`
-# override below instead, so it only strips the *other* platforms' binaries.
 files:
   - src/**/*
   - package.json
   - '!**/*.map'
+
+  # --- weight, in descending order of how much it saves -------------------
+  # 170 MB: the ORT tarball carries every platform. win32 + linux is DirectML and
+  # CUDA that a Mac build can never load.
+  - '!node_modules/onnxruntime-node/bin/napi-v3/win32/**'
+  - '!node_modules/onnxruntime-node/bin/napi-v3/linux/**'
+  # 34 MB: and of the two Mac slices, keep only the one being built.
+  - '!node_modules/onnxruntime-node/bin/napi-v3/darwin/!(${arch})/**'
 
   # 68 MB: transformers declares onnxruntime-web as a hard dependency, but the
   # build we actually load (dist/transformers.node.mjs) imports only node:*,
@@ -63,22 +64,6 @@ afterAllArtifactBuild: scripts/notarize-dmg.mjs
 artifactName: ${productName}-${arch}.${ext}
 
 mac:
-  # Platform-specific `files` fully replace the top-level list rather than
-  # merging with it, so this repeats the shared entries above and adds only
-  # the Mac slice of onnxruntime-node: the other platforms' native binaries,
-  # and the Mac architecture not being built.
-  files:
-    - src/**/*
-    - package.json
-    - '!**/*.map'
-    - '!node_modules/onnxruntime-web/**'
-    - '!node_modules/@huggingface/transformers/dist/!(transformers.node.mjs)'
-    # 170 MB: the ORT tarball carries every platform. win32 + linux is DirectML
-    # and CUDA that a Mac build can never load.
-    - '!node_modules/onnxruntime-node/bin/napi-v3/win32/**'
-    - '!node_modules/onnxruntime-node/bin/napi-v3/linux/**'
-    # 34 MB: and of the two Mac slices, keep only the one being built.
-    - '!node_modules/onnxruntime-node/bin/napi-v3/darwin/!(${arch})/**'
   category: public.app-category.developer-tools
   target:
     # What a person downloads. Carries the quarantine flag, gets judged by
@@ -121,27 +106,3 @@ mac:
     NSMicrophoneUsageDescription: >-
       ScalAI uses your microphone so you can dictate into a session instead of
       typing.
-
-# No certificateFile/certificatePassword is configured, so this build is
-# unsigned by design: Windows SmartScreen will warn on first run, same as the
-# Mac review build is unsigned and Gatekeeper warns on first run. Signing is a
-# deliberate later step, not a blocker to shipping a build people can run.
-win:
-  # Same reasoning as mac.files above: this replaces rather than merges with
-  # the top-level `files`, so it repeats the shared entries and keeps only the
-  # win32 slice of onnxruntime-node.
-  files:
-    - src/**/*
-    - package.json
-    - '!**/*.map'
-    - '!node_modules/onnxruntime-web/**'
-    - '!node_modules/@huggingface/transformers/dist/!(transformers.node.mjs)'
-    - '!node_modules/onnxruntime-node/bin/napi-v3/darwin/**'
-    - '!node_modules/onnxruntime-node/bin/napi-v3/linux/**'
-  target:
-    - target: nsis
-      arch: [x64]
-
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
