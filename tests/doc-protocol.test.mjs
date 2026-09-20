@@ -4,16 +4,25 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { buildDocUrl, parseDocUrl, resolveWithinRoot, isInside } = require('../src/main/doc-protocol.js');
+
+// resolveWithinRoot builds `joined` with path.resolve, which on Windows
+// injects a drive letter (from cwd) for these driveless POSIX-style fixture
+// roots — real fs.realpathSync would then normalize that consistently, but
+// this stub matches on plain '/' strings, so it must fold each path back to
+// that form first, the same way the real one would end up agreeing with it.
+const posix = (p) => p.replace(/^[A-Za-z]:/, '').split(path.sep).join('/');
 
 // A stub realpath that behaves like the real one: it follows a symlinked path
 // component wherever it appears, not only when the whole path matches. `links`
 // maps a symlink path to its target; a target of null means "does not exist".
 const realpath = (links = {}) => {
   const resolve = (p) => {
+    p = posix(p);
     // Longest symlink prefix first, so /root/link resolves before /root.
     const keys = Object.keys(links).sort((a, b) => b.length - a.length);
     for (const k of keys) {

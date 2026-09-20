@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const {
@@ -14,10 +15,17 @@ function memIo(seed = {}) {
     write: (f, t) => { files[f] = t; },
     exists: (f) => f in files,
     remove: (f) => { delete files[f]; },
-    list: (dir) => Object.keys(files).filter((f) => f.startsWith(dir + '/')).map((f) => f.slice(dir.length + 1)).filter((r) => !r.includes('/')),
+    list: (dir) => Object.keys(files).filter((f) => f.startsWith(dir + path.sep)).map((f) => f.slice(dir.length + 1)).filter((r) => !r.includes(path.sep)),
     files,
   };
 }
+
+// agent-master.js builds every file path with path.join, which is
+// backslash-separated on Windows; fold back to '/' to compare against these
+// platform-neutral literals, and build memIo's seed/lookup keys the same way
+// so they match what production code actually wrote.
+const posix = (p) => p.split(path.sep).join('/');
+const jp = (...segs) => path.join(...segs);
 
 const PROJ = '/proj';
 const MASTER_MD = `---
@@ -86,7 +94,7 @@ test('isDelivered is false for a hand-made file', () => {
 // ---- masters + plan ---------------------------------------------------------
 
 test('readAgentMasters lists agents/ and parses each', () => {
-  const io = memIo({ '/proj/agents/release-scribe.md': MASTER_MD, '/proj/agents/notes.txt': 'x' });
+  const io = memIo({ [jp(PROJ, 'agents', 'release-scribe.md')]: MASTER_MD, [jp(PROJ, 'agents', 'notes.txt')]: 'x' });
   const masters = readAgentMasters({ projectPath: PROJ, io });
   assert.equal(masters.length, 1);
   assert.equal(masters[0].slug, 'release-scribe');
@@ -100,11 +108,11 @@ test('agentDeliveryPlan: one copy per writing tool, cursor rides claude, hermes 
     projectPath: PROJ,
   });
   const by = Object.fromEntries(plan.map((s) => [s.agent, s]));
-  assert.equal(by.claude.file, '/proj/.claude/agents/release-scribe.md');
-  assert.equal(by.opencode.file, '/proj/.opencode/agents/release-scribe.md');
-  assert.equal(by.gemini.file, '/proj/.gemini/agents/release-scribe.md');
-  assert.equal(by.kimi.file, '/proj/.kimi-code/agents/release-scribe.md');
-  assert.equal(by.codex.file, '/proj/.codex/agents/release-scribe.toml');
+  assert.equal(posix(by.claude.file), '/proj/.claude/agents/release-scribe.md');
+  assert.equal(posix(by.opencode.file), '/proj/.opencode/agents/release-scribe.md');
+  assert.equal(posix(by.gemini.file), '/proj/.gemini/agents/release-scribe.md');
+  assert.equal(posix(by.kimi.file), '/proj/.kimi-code/agents/release-scribe.md');
+  assert.equal(posix(by.codex.file), '/proj/.codex/agents/release-scribe.toml');
   assert.equal(by.cursor.kind, 'via');
   assert.equal(by.cursor.via, 'claude');
   assert.equal(by.hermes.kind, 'none');
@@ -114,68 +122,68 @@ test('agentDeliveryPlan: one copy per writing tool, cursor rides claude, hermes 
 
 test('deliverAgents writes marked copies but never overwrites a hand-made file', () => {
   const io = memIo({
-    '/proj/agents/release-scribe.md': MASTER_MD,
-    '/proj/.claude/agents/release-scribe.md': '---\nname: release-scribe\n---\ntheir own version\n',
+    [jp(PROJ, 'agents', 'release-scribe.md')]: MASTER_MD,
+    [jp(PROJ, '.claude', 'agents', 'release-scribe.md')]: '---\nname: release-scribe\n---\ntheir own version\n',
   });
   const results = deliverAgents({ projectPath: PROJ, agentIds: ['claude', 'opencode', 'codex'], io });
-  assert.match(io.files['/proj/.opencode/agents/release-scribe.md'], /mode: all/);
-  assert.match(io.files['/proj/.codex/agents/release-scribe.toml'], /developer_instructions/);
-  assert.match(io.files['/proj/.claude/agents/release-scribe.md'], /their own version/, 'hand-made wins');
+  assert.match(io.files[jp(PROJ, '.opencode', 'agents', 'release-scribe.md')], /mode: all/);
+  assert.match(io.files[jp(PROJ, '.codex', 'agents', 'release-scribe.toml')], /developer_instructions/);
+  assert.match(io.files[jp(PROJ, '.claude', 'agents', 'release-scribe.md')], /their own version/, 'hand-made wins');
   const claude = results.find((r) => r.agent === 'claude' && r.slug === 'release-scribe');
   assert.equal(claude.ok, false);
   assert.equal(claude.theirs, true);
 });
 
 test('deliverAgents regenerates a previously marked copy', () => {
-  const io = memIo({ '/proj/agents/release-scribe.md': MASTER_MD });
+  const io = memIo({ [jp(PROJ, 'agents', 'release-scribe.md')]: MASTER_MD });
   deliverAgents({ projectPath: PROJ, agentIds: ['claude'], io });
-  io.files['/proj/agents/release-scribe.md'] = MASTER_MD.replace('Keep the README honest.', 'Keep the CHANGELOG honest.');
+  io.files[jp(PROJ, 'agents', 'release-scribe.md')] = MASTER_MD.replace('Keep the README honest.', 'Keep the CHANGELOG honest.');
   deliverAgents({ projectPath: PROJ, agentIds: ['claude'], io });
-  assert.match(io.files['/proj/.claude/agents/release-scribe.md'], /CHANGELOG honest/);
+  assert.match(io.files[jp(PROJ, '.claude', 'agents', 'release-scribe.md')], /CHANGELOG honest/);
 });
 
 // ---- adopt ------------------------------------------------------------------
 
 test('liftToMaster raises a claude agent to the drawer and marks the original as a copy', () => {
   const theirs = '---\nname: code-reviewer\ndescription: Reviews diffs.\ntools: Read, Grep\n---\n\nReview carefully.\n';
-  const io = memIo({ '/proj/.claude/agents/code-reviewer.md': theirs });
-  const res = liftToMaster({ filePath: '/proj/.claude/agents/code-reviewer.md', platform: 'claude', projectPath: PROJ, io });
+  const io = memIo({ [jp(PROJ, '.claude', 'agents', 'code-reviewer.md')]: theirs });
+  const res = liftToMaster({ filePath: jp(PROJ, '.claude', 'agents', 'code-reviewer.md'), platform: 'claude', projectPath: PROJ, io });
   assert.equal(res.ok, true);
-  assert.equal(res.masterPath, '/proj/agents/code-reviewer.md');
-  assert.match(io.files['/proj/agents/code-reviewer.md'], /description: Reviews diffs\./);
-  assert.ok(!isDelivered(io.files['/proj/agents/code-reviewer.md']), 'the master is nobody\'s copy');
-  assert.ok(isDelivered(io.files['/proj/.claude/agents/code-reviewer.md']), 'original is now a marked copy');
+  assert.equal(posix(res.masterPath), '/proj/agents/code-reviewer.md');
+  assert.match(io.files[jp(PROJ, 'agents', 'code-reviewer.md')], /description: Reviews diffs\./);
+  assert.ok(!isDelivered(io.files[jp(PROJ, 'agents', 'code-reviewer.md')]), 'the master is nobody\'s copy');
+  assert.ok(isDelivered(io.files[jp(PROJ, '.claude', 'agents', 'code-reviewer.md')]), 'original is now a marked copy');
 });
 
 test('liftToMaster maps opencode mode into the superset and refuses a name clash', () => {
   const io = memIo({
-    '/proj/.opencode/agents/tester.md': '---\ndescription: Runs tests.\nmode: subagent\n---\nRun them.\n',
-    '/proj/agents/tester.md': MASTER_MD,
+    [jp(PROJ, '.opencode', 'agents', 'tester.md')]: '---\ndescription: Runs tests.\nmode: subagent\n---\nRun them.\n',
+    [jp(PROJ, 'agents', 'tester.md')]: MASTER_MD,
   });
-  const res = liftToMaster({ filePath: '/proj/.opencode/agents/tester.md', platform: 'opencode', projectPath: PROJ, io });
+  const res = liftToMaster({ filePath: jp(PROJ, '.opencode', 'agents', 'tester.md'), platform: 'opencode', projectPath: PROJ, io });
   assert.equal(res.ok, false, 'a master already owns this name');
-  const io2 = memIo({ '/proj/.opencode/agents/tester.md': '---\ndescription: Runs tests.\nmode: subagent\n---\nRun them.\n' });
-  const res2 = liftToMaster({ filePath: '/proj/.opencode/agents/tester.md', platform: 'opencode', projectPath: PROJ, io: io2 });
+  const io2 = memIo({ [jp(PROJ, '.opencode', 'agents', 'tester.md')]: '---\ndescription: Runs tests.\nmode: subagent\n---\nRun them.\n' });
+  const res2 = liftToMaster({ filePath: jp(PROJ, '.opencode', 'agents', 'tester.md'), platform: 'opencode', projectPath: PROJ, io: io2 });
   assert.equal(res2.ok, true);
-  assert.match(io2.files['/proj/agents/tester.md'], /mode: subagent/);
+  assert.match(io2.files[jp(PROJ, 'agents', 'tester.md')], /mode: subagent/);
 });
 
 // ---- sweep ------------------------------------------------------------------
 
 test('sweepCopies removes marked copies only, and reports what it left', () => {
-  const io = memIo({ '/proj/agents/release-scribe.md': MASTER_MD });
+  const io = memIo({ [jp(PROJ, 'agents', 'release-scribe.md')]: MASTER_MD });
   deliverAgents({ projectPath: PROJ, agentIds: ['claude', 'codex'], io });
-  io.files['/proj/.opencode/agents/release-scribe.md'] = 'hand-made, same name\n';
+  io.files[jp(PROJ, '.opencode', 'agents', 'release-scribe.md')] = 'hand-made, same name\n';
   const res = sweepCopies({ projectPath: PROJ, slug: 'release-scribe', io });
-  assert.ok(!('/proj/.claude/agents/release-scribe.md' in io.files));
-  assert.ok(!('/proj/.codex/agents/release-scribe.toml' in io.files));
-  assert.ok('/proj/.opencode/agents/release-scribe.md' in io.files, 'unmarked file survives');
-  assert.deepEqual(res.left, ['/proj/.opencode/agents/release-scribe.md']);
+  assert.ok(!(jp(PROJ, '.claude', 'agents', 'release-scribe.md') in io.files));
+  assert.ok(!(jp(PROJ, '.codex', 'agents', 'release-scribe.toml') in io.files));
+  assert.ok(jp(PROJ, '.opencode', 'agents', 'release-scribe.md') in io.files, 'unmarked file survives');
+  assert.deepEqual(res.left.map(posix), ['/proj/.opencode/agents/release-scribe.md']);
 });
 
 test('antigravity delivers to the user-scope gemini folder, the only one agy reads', () => {
   const plan = agentDeliveryPlan({ slug: 'x', agentIds: ['antigravity'], projectPath: PROJ, homeDir: '/home/cal' });
-  assert.equal(plan[0].file, '/home/cal/.gemini/agents/x.md');
+  assert.equal(posix(plan[0].file), '/home/cal/.gemini/agents/x.md');
 });
 
 // ---- the tool: hint ---------------------------------------------------------
@@ -203,18 +211,18 @@ test('tool: never reaches any dialect copy', () => {
 // path, the marker at that path says the rest.
 
 test('deliveryState reports here / soon / theirs / none / via', () => {
-  const io = memIo({ '/proj/agents/release-scribe.md': MASTER_MD });
+  const io = memIo({ [jp(PROJ, 'agents', 'release-scribe.md')]: MASTER_MD });
   deliverAgents({ projectPath: PROJ, agentIds: ['claude'], io });
-  io.files['/home/cal/.gemini/agents/release-scribe.md'] = 'hand-made, same name\n';
+  io.files[jp('/home/cal', '.gemini', 'agents', 'release-scribe.md')] = 'hand-made, same name\n';
   const rows = deliveryState({
     projectPath: PROJ, slug: 'release-scribe',
     agentIds: ['claude', 'codex', 'antigravity', 'hermes', 'cursor'], io, homeDir: '/home/cal',
   });
   const by = Object.fromEntries(rows.map((r) => [r.agent, r]));
   assert.equal(by.claude.state, 'here');
-  assert.equal(by.claude.file, '/proj/.claude/agents/release-scribe.md');
+  assert.equal(posix(by.claude.file), '/proj/.claude/agents/release-scribe.md');
   assert.equal(by.codex.state, 'soon');
-  assert.equal(by.codex.file, '/proj/.codex/agents/release-scribe.toml');
+  assert.equal(posix(by.codex.file), '/proj/.codex/agents/release-scribe.toml');
   assert.equal(by.antigravity.state, 'theirs');
   assert.equal(by.hermes.state, 'none');
   assert.ok(by.hermes.reason);
@@ -223,20 +231,20 @@ test('deliveryState reports here / soon / theirs / none / via', () => {
 });
 
 test('deliveryState never writes anything', () => {
-  const io = memIo({ '/proj/agents/release-scribe.md': MASTER_MD });
+  const io = memIo({ [jp(PROJ, 'agents', 'release-scribe.md')]: MASTER_MD });
   const before = Object.keys(io.files).length;
   deliveryState({ projectPath: PROJ, slug: 'release-scribe', agentIds: ['claude', 'codex'], io });
   assert.equal(Object.keys(io.files).length, before);
 });
 
 test('liftToMaster refuses a TOML agent rather than mangling it', () => {
-  const io = memIo({ '/proj/.codex/agents/tomlish.toml': 'name = "tomlish"\ndescription = "d"\n' });
-  const res = liftToMaster({ filePath: '/proj/.codex/agents/tomlish.toml', platform: 'codex', projectPath: PROJ, io });
+  const io = memIo({ [jp(PROJ, '.codex', 'agents', 'tomlish.toml')]: 'name = "tomlish"\ndescription = "d"\n' });
+  const res = liftToMaster({ filePath: jp(PROJ, '.codex', 'agents', 'tomlish.toml'), platform: 'codex', projectPath: PROJ, io });
   assert.equal(res.ok, false);
   assert.match(res.error, /markdown/i);
-  assert.equal(io.files['/proj/.codex/agents/tomlish.toml'], 'name = "tomlish"\ndescription = "d"\n',
+  assert.equal(io.files[jp(PROJ, '.codex', 'agents', 'tomlish.toml')], 'name = "tomlish"\ndescription = "d"\n',
     'the user’s own file is untouched');
-  assert.ok(!('/proj/agents/tomlish.md' in io.files), 'and no master was written');
+  assert.ok(!(jp(PROJ, 'agents', 'tomlish.md') in io.files), 'and no master was written');
 });
 
 // ---- importing an agent that lives elsewhere --------------------------------
@@ -252,7 +260,7 @@ test('importToMaster lifts a personal Codex TOML into agents/ and leaves the sou
   const io = memIo({ [src]: toml });
   const res = importToMaster({ filePath: src, projectPath: PROJ, io });
   assert.equal(res.ok, true);
-  const master = io.files['/proj/agents/legal-drafter.md'];
+  const master = io.files[jp(PROJ, 'agents', 'legal-drafter.md')];
   assert.match(master, /name: legal-drafter/);
   assert.match(master, /description: Drafts the boring parts\./);
   assert.match(master, /Be precise\. Cite clauses\./);
@@ -265,14 +273,14 @@ test('importToMaster lifts a personal markdown agent the same way', () => {
   const io = memIo({ [src]: md });
   const res = importToMaster({ filePath: src, projectPath: PROJ, io });
   assert.equal(res.ok, true);
-  assert.match(io.files['/proj/agents/sql-tuner.md'], /description: Makes queries fast\./);
-  assert.match(io.files['/proj/agents/sql-tuner.md'], /Tune them\./);
+  assert.match(io.files[jp(PROJ, 'agents', 'sql-tuner.md')], /description: Makes queries fast\./);
+  assert.match(io.files[jp(PROJ, 'agents', 'sql-tuner.md')], /Tune them\./);
   assert.equal(io.files[src], md, 'the personal file is untouched');
 });
 
 test('importToMaster refuses a name a master already owns', () => {
   const io = memIo({
-    '/proj/agents/legal-drafter.md': MASTER_MD,
+    [jp(PROJ, 'agents', 'legal-drafter.md')]: MASTER_MD,
     '/home/u/.codex/agents/legal-drafter.toml': 'name = "legal-drafter"\ndescription = "d"\n',
   });
   const res = importToMaster({ filePath: '/home/u/.codex/agents/legal-drafter.toml', projectPath: PROJ, io });
@@ -287,8 +295,8 @@ test('a TOML whose prompt discusses TOML does not leak keys into the master', ()
     + 'developer_instructions = """\nAgent files start with\nname = "not-me"\n"""\n' });
   const res = importToMaster({ filePath: src, projectPath: PROJ, io });
   assert.equal(res.ok, true);
-  assert.match(io.files['/proj/agents/meta.md'], /^name: meta$/m);
-  assert.match(io.files['/proj/agents/meta.md'], /not-me/, 'the prompt text itself survives into the body');
+  assert.match(io.files[jp(PROJ, 'agents', 'meta.md')], /^name: meta$/m);
+  assert.match(io.files[jp(PROJ, 'agents', 'meta.md')], /not-me/, 'the prompt text itself survives into the body');
 });
 
 test('importToMaster reads the other TOML fence too', () => {
@@ -296,8 +304,8 @@ test('importToMaster reads the other TOML fence too', () => {
   const io = memIo({ [src]: "name = \"quoter\"\ndescription = \"d\"\ndeveloper_instructions = '''\nname = \"inside\"\nBody here.\n'''\n" });
   const res = importToMaster({ filePath: src, projectPath: PROJ, io });
   assert.equal(res.ok, true);
-  assert.match(io.files['/proj/agents/quoter.md'], /^name: quoter$/m, 'the fenced key stays in the body');
-  assert.match(io.files['/proj/agents/quoter.md'], /Body here\./);
+  assert.match(io.files[jp(PROJ, 'agents', 'quoter.md')], /^name: quoter$/m, 'the fenced key stays in the body');
+  assert.match(io.files[jp(PROJ, 'agents', 'quoter.md')], /Body here\./);
 });
 
 test('importToMaster refuses a missing project rather than resolving paths against nothing', () => {
@@ -311,9 +319,9 @@ test('importToMaster refuses a missing project rather than resolving paths again
 // listed a master delivered there as "probe-tester  project".
 test('a master reaches grok as project markdown', () => {
   const io = memIo({});
-  io.write('/p/agents/scribe.md', '---\nname: scribe\ndescription: writes notes\n---\n\nBody.\n');
+  io.write(jp('/p', 'agents', 'scribe.md'), '---\nname: scribe\ndescription: writes notes\n---\n\nBody.\n');
   deliverAgents({ projectPath: '/p', agentIds: ['grok'], io });
-  const copy = io.read('/p/.grok/agents/scribe.md');
+  const copy = io.read(jp('/p', '.grok', 'agents', 'scribe.md'));
   assert.match(copy, /made by ScalAI from agents\/scribe\.md/);
   assert.match(copy, /^---\n/);
   assert.match(copy, /description: writes notes/);
@@ -322,9 +330,9 @@ test('a master reaches grok as project markdown', () => {
 
 test('deleting a master sweeps its grok copy too', () => {
   const io = memIo({});
-  io.write('/p/agents/scribe.md', '---\nname: scribe\n---\n\nBody.\n');
+  io.write(jp('/p', 'agents', 'scribe.md'), '---\nname: scribe\n---\n\nBody.\n');
   deliverAgents({ projectPath: '/p', agentIds: ['grok'], io });
-  assert.ok(io.exists('/p/.grok/agents/scribe.md'));
+  assert.ok(io.exists(jp('/p', '.grok', 'agents', 'scribe.md')));
   const { removed } = sweepCopies({ projectPath: '/p', slug: 'scribe', io });
-  assert.ok(removed.includes('/p/.grok/agents/scribe.md'));
+  assert.ok(removed.map(posix).includes('/p/.grok/agents/scribe.md'));
 });
