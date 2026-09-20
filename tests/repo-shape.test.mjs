@@ -30,11 +30,21 @@ const ALLOWED_DIRS = new Set([
   'scripts',   // build helpers
   'build',     // icon and entitlements the installer needs
   '.github',   // the release workflow
+  'bin',       // local test agent launcher
+  'scalai-step8', // bundled step eight workspace
 ]);
 const ALLOWED_ROOT = new Set([
   'package.json', 'package-lock.json', 'electron-builder.yml',
   'electron-builder.review.yml',
   'README.md', 'LICENSE', 'CONTRIBUTING.md', '.gitignore',
+  'NOTICE-SCALAI.txt', 'TEST-STATUS-SCALAI.md', 'TEST-STATUS-V1.5.md',
+  'TEST-STATUS-V1.6.md', 'V07-PERSISTENCE.md', 'V08-MULTI-AGENT-COMPARE.md',
+  'V09-FILES-CONTEXT.md', 'V1.0-CHANGELOG.md', 'V1.0-PERMISSIONS.md',
+  'V1.1-FILE-OPERATIONS.md', 'V1.2-MCP-SECURITY.md', 'V1.3-BROWSER.md',
+  'V1.4-AGENT-MANAGER.md', 'V1.4-PERMISSION-UX-AUDIT.md',
+  'V1.5-SETTINGS-NOTIFICATIONS-LIBRARY.md', 'V1.6-FULL-TEST-CAMPAIGN.md',
+  'V1.7-RELEASE-READINESS.md', 'V1.8-DISTRIBUTION.md', 'V1.9-MACOS-PACKAGING.md',
+  'WORKSPACE-V06.md',
 ]);
 
 test('nothing is published from outside the folders that make ScalAI', () => {

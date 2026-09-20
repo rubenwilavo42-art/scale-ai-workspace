@@ -12,6 +12,7 @@ import { normalizeContextEntries, restoreContextIndexes } from '../src/renderer/
 const require = createRequire(import.meta.url);
 const policy = require('../src/main/session-env');
 const agentPermissions = require('../src/main/agent-permissions');
+const hasZsh = fs.existsSync('/bin/zsh');
 const main = fs.readFileSync(new URL('../src/main/main.js', import.meta.url), 'utf8');
 const renderer = fs.readFileSync(new URL('../src/renderer/app.js', import.meta.url), 'utf8');
 const parentEnv = { PATH: '/bin', HOME: '/home/test', SHELL: '/bin/zsh', OPENAI_API_KEY: 'openai', ANTHROPIC_API_KEY: 'anthropic', UNLISTED_TOKEN: 'other' };
@@ -205,7 +206,7 @@ test('the claude-in-shell fallback runs as the shell script too', async () => {
 // rc files) runs a dummy agent that reports the key it saw and exits 7. No
 // input is ever sent, so a shell that stayed at a prompt would hang — and the
 // timeout, not the test runner, is what fails it.
-test('an agent tile exits with the agent, and the shell still reads its rc file', async () => {
+test('an agent tile exits with the agent, and the shell still reads its rc file', { skip: !hasZsh }, async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nami-agent-tile-'));
   const agentScript = path.join(home, 'dummy-codex');
   fs.writeFileSync(path.join(home, '.zshrc'), 'export NAMI_RC=read\n');

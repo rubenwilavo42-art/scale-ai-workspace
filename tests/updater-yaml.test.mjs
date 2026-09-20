@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 
 const require = createRequire(import.meta.url);
-const { parseUpdateInfo, getFileList, resolveFichiers } = require('electron-updater/out/providers/Provider');
+const { parseUpdateInfo, getFileList, resolveFiles } = require('electron-updater/out/providers/Provider');
 const source = new URL('https://updates.example.test/latest-mac.yml');
 const parse = text => parseUpdateInfo(text, 'latest-mac.yml', source);
 
@@ -16,7 +16,7 @@ test('the installed updater reads both Mac artifacts and their integrity metadat
   assert.deepEqual(getFileList(info).map(f => [f.url, f.size, f.sha512]), [
     ['ScalAI-arm64.zip', 1234, digest], ['ScalAI-x64.zip', 5678, digest],
   ]);
-  assert.deepEqual(resolveFichiers(info, source).map(f => f.url.href), [
+  assert.deepEqual(resolveFiles(info, source).map(f => f.url.href), [
     'https://updates.example.test/ScalAI-arm64.zip', 'https://updates.example.test/ScalAI-x64.zip',
   ]);
 });
@@ -24,7 +24,7 @@ test('the installed updater reads both Mac artifacts and their integrity metadat
 test('the installed updater rejects malformed YAML and artifacts without checksums', () => {
   assert.throws(() => parse('files: [unterminated'), { code: 'ERR_UPDATER_INVALID_UPDATE_INFO' });
   assert.throws(() => parse(null), { code: 'ERR_UPDATER_INVALID_UPDATE_INFO' });
-  assert.throws(() => resolveFichiers(parse('version: 0.5.2\nfiles:\n  - url: ScalAI-arm64.zip\n'), source), { code: 'ERR_UPDATER_NO_CHECKSUM' });
+  assert.throws(() => resolveFiles(parse('version: 0.5.2\nfiles:\n  - url: ScalAI-arm64.zip\n'), source), { code: 'ERR_UPDATER_NO_CHECKSUM' });
 });
 
 test('the updater rejects repeated empty YAML merges within its work budget', () => {

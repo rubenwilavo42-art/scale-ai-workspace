@@ -41,9 +41,10 @@ test('project scope requires an existing directory', () => {
 });
 
 test('renderer sanitizer exposes env names but never secret values', () => {
-  const safe = sanitizeForRenderer({ command: 'npx', args: ['demo'], env: { API_KEY: 'SUPER-SECRET' } });
+  const secretValue = 'S'.repeat(24);
+  const safe = sanitizeForRenderer({ command: 'npx', args: ['demo'], env: { API_KEY: secretValue } });
   assert.deepEqual(safe.envKeys, ['API_KEY']);
-  assert.equal(JSON.stringify(safe).includes('SUPER-SECRET'), false);
+  assert.equal(JSON.stringify(safe).includes(secretValue), false);
 });
 
 test('bundle paths stay inside managed bundle directory', () => {
