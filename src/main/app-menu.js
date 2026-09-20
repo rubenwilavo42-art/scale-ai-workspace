@@ -206,7 +206,7 @@ function buildMenuTemplate({
     link('Release Notes', LINKS.releases),
     SEP,
     link('ScalAI for Your Team', LINKS.teams),
-    link('Made by Cal', LINKS.maker),
+    link('Conçu par sacalai.vatsk.rub', LINKS.maker),
     SEP,
     link('Terms', LINKS.terms),
     ...(mac ? [] : [SEP, cmd('About ScalAI', 'about'), cmd('Check for Updates', 'update-check')]),

@@ -136,7 +136,7 @@ test('Help carries the docs first and the ask in the middle', () => {
     'Report an Issue',
     'Release Notes',
     'ScalAI for Your Team',
-    'Made by Cal',
+    'Conçu par sacalai.vatsk.rub',
     'Terms',
   ]);
 });
