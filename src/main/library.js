@@ -474,14 +474,18 @@ async function deleteItem({ filePath, projectPath, homeDir, trashFn, existsFn = 
   // Built from the same source tables the scan uses, so anything ScalAI is willing
   // to list it is willing to clean up — which is what makes the broken-links
   // group actionable instead of just a shelf of other tools' rot.
+  // Resolved the same way `abs` is above: `path.join` never touches a drive
+  // letter, so on Windows a root built with `join` from a root-relative path
+  // would never share `abs`'s resolved drive prefix and this containment
+  // check would silently refuse everything.
   const roots = [];
   if (projectPath) {
-    for (const s of PROJECT_SKILL_SOURCES) roots.push(path.join(projectPath, s.rel));
-    roots.push(path.join(projectPath, '.claude'), path.join(projectPath, '.opencode'));
-    roots.push(path.join(projectPath, 'agents'), path.join(projectPath, '.gemini'), path.join(projectPath, '.kimi-code'), path.join(projectPath, '.codex'), path.join(projectPath, '.grok'));
+    for (const s of PROJECT_SKILL_SOURCES) roots.push(path.resolve(projectPath, s.rel));
+    roots.push(path.resolve(projectPath, '.claude'), path.resolve(projectPath, '.opencode'));
+    roots.push(path.resolve(projectPath, 'agents'), path.resolve(projectPath, '.gemini'), path.resolve(projectPath, '.kimi-code'), path.resolve(projectPath, '.codex'), path.resolve(projectPath, '.grok'));
   }
-  for (const s of USER_SKILL_SOURCES) roots.push(path.join(home, s.rel));
-  roots.push(path.join(home, '.claude', 'agents'), path.join(home, '.config', 'opencode'));
+  for (const s of USER_SKILL_SOURCES) roots.push(path.resolve(home, s.rel));
+  roots.push(path.resolve(home, '.claude', 'agents'), path.resolve(home, '.config', 'opencode'));
   const inRoot = roots.some((r) => abs.startsWith(r + path.sep));
   const inPluginCache = abs.includes(path.sep + path.join('.claude', 'plugins') + path.sep);
   if (!inRoot || inPluginCache) return { ok: false, error: 'Not a deletable library item' };

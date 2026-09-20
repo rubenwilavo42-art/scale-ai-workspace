@@ -15,8 +15,13 @@ function createReviewProfile({ argv, normalPath, packaged, reviewBuild = false, 
   // before Electron opens storage; never probe or migrate protected files here.
   if (review && explicit) {
     const target = path.resolve(explicit);
+    // Resolve, not join: a root-relative homePath (no drive letter) would
+    // otherwise get a Windows drive letter from cwd on `target`'s side only,
+    // via `resolve`, and never match here via plain `join` — silently
+    // disabling this guard on Windows for any caller that didn't supply a
+    // fully drive-qualified homePath.
     if (['Desktop', 'Documents', 'Downloads'].some(name => {
-      const protectedPath = path.join(homePath, name);
+      const protectedPath = path.resolve(homePath, name);
       return target === protectedPath || target.startsWith(protectedPath + path.sep);
     })) throw new Error('Review data must be outside Desktop, Documents and Downloads. Use --review without --user-data for a persistent Application Support profile.');
   }

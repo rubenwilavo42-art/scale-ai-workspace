@@ -20,6 +20,9 @@ const { deliverAgents } = require('../src/main/agent-master.js');
 let home, project;
 function write(p, text) { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); }
 const agents = (items, slug) => items.filter((i) => i.type === 'agent' && i.slug === slug);
+// Windows-native paths are backslash-joined; fold to '/' so a forward-slash
+// regex can match on every platform.
+const posix = (p) => p.split(path.sep).join('/');
 
 before(() => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nami-codex-'));
@@ -48,7 +51,7 @@ test('a hand-made Codex agent is listed, as Codex, with its filename as the slug
   assert.equal(rows.length, 1);
   assert.equal(rows[0].platform, 'codex');
   assert.equal(rows[0].scope, 'project');
-  assert.match(rows[0].filePath, /\.codex\/agents\/toml-critic\.toml$/);
+  assert.match(posix(rows[0].filePath), /\.codex\/agents\/toml-critic\.toml$/);
 });
 
 test('its name and description come out of the TOML, not the filename', () => {

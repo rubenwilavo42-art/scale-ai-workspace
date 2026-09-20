@@ -10,6 +10,9 @@ const { deliverAgents } = require('../src/main/agent-master.js');
 
 let home, project;
 function write(p, text) { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); }
+// Windows-native paths are backslash-joined; fold to '/' so a forward-slash
+// regex can match on every platform.
+const posix = (p) => p.split(path.sep).join('/');
 
 before(() => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dainami-masters-'));
@@ -26,7 +29,7 @@ test('a delivered master is one row — the master — never six', () => {
   const rows = items.filter((i) => i.type === 'agent' && i.slug === 'release-scribe');
   assert.equal(rows.length, 1);
   assert.equal(rows[0].platform, 'project');
-  assert.match(rows[0].filePath, /agents\/release-scribe\.md$/);
+  assert.match(posix(rows[0].filePath), /agents\/release-scribe\.md$/);
 });
 
 test('the copies really landed, marker and all', () => {
@@ -47,7 +50,7 @@ test('a hand-made platform agent still shows, on its own platform', () => {
 test('createItem writes a neutral master for platform project', () => {
   const res = createItem({ projectPath: project, homeDir: home, type: 'agent', platform: 'project', scope: 'project', name: 'Fact Checker' });
   assert.equal(res.ok, true);
-  assert.match(res.filePath, /agents\/fact-checker\.md$/);
+  assert.match(posix(res.filePath), /agents\/fact-checker\.md$/);
   const text = fs.readFileSync(res.filePath, 'utf8');
   assert.match(text, /name: fact-checker/);
   assert.ok(!text.includes('made by ScalAI'), 'a master is nobody\'s copy');
