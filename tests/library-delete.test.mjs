@@ -1,24 +1,30 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { deleteItem } = require('../src/main/library.js');
 
 const H = '/home/u', P = '/proj';
+// deleteItem resolves every path it touches, which on Windows means an
+// absolute drive prefix (e.g. D:\home\u\...) picked up from the runner's
+// cwd. These fixtures assert against plain POSIX literals, so strip the
+// drive and fold separators back to '/' before comparing or looking up.
+const posix = (p) => p.replace(/^[A-Za-z]:/, '').split(path.sep).join('/');
 function fakes(existing) {
   const trashed = [];
   return {
     trashed,
     trashFn: (p) => { trashed.push(p); return Promise.resolve(); },
-    existsFn: (p) => existing.includes(p),
+    existsFn: (p) => existing.includes(posix(p)),
   };
 }
 
 test('agent file inside the project .claude root goes to trash', async () => {
   const f = fakes([P + '/.claude/agents/scribe.md']);
   const out = await deleteItem({ filePath: P + '/.claude/agents/scribe.md', projectPath: P, homeDir: H, ...f });
-  assert.deepEqual(out, { ok: true, target: P + '/.claude/agents/scribe.md' });
-  assert.deepEqual(f.trashed, [P + '/.claude/agents/scribe.md']);
+  assert.deepEqual({ ok: out.ok, target: posix(out.target) }, { ok: true, target: P + '/.claude/agents/scribe.md' });
+  assert.deepEqual(f.trashed.map(posix), [P + '/.claude/agents/scribe.md']);
 });
 
 // The project's own skills/ is where ScalAI writes, so it has to be deletable —
@@ -28,7 +34,7 @@ test('a skill in the project\'s own skills/ folder is deletable', async () => {
   const f = fakes([P + '/skills/meeting-notes']);
   const out = await deleteItem({ filePath: P + '/skills/meeting-notes/SKILL.md', projectPath: P, homeDir: H, ...f });
   assert.equal(out.ok, true, out.error);
-  assert.deepEqual(f.trashed, [P + '/skills/meeting-notes']);
+  assert.deepEqual(f.trashed.map(posix), [P + '/skills/meeting-notes']);
 });
 
 // The 60 dangling links a shared-store installer left behind live in folders the
@@ -38,7 +44,7 @@ test('a dead link in another tool\'s skills folder can be removed', async () => 
     const f = fakes([`${H}/${rel}/media-use`]);
     const out = await deleteItem({ filePath: `${H}/${rel}/media-use/SKILL.md`, projectPath: null, homeDir: H, ...f });
     assert.equal(out.ok, true, `${rel}: ${out.error}`);
-    assert.deepEqual(f.trashed, [`${H}/${rel}/media-use`]);
+    assert.deepEqual(f.trashed.map(posix), [`${H}/${rel}/media-use`]);
   }
 });
 
@@ -60,7 +66,7 @@ test('a skill SKILL.md trashes the whole skill folder', async () => {
   const f = fakes([H + '/.claude/skills/paper-design']);
   const out = await deleteItem({ filePath: H + '/.claude/skills/paper-design/SKILL.md', projectPath: null, homeDir: H, ...f });
   assert.equal(out.ok, true);
-  assert.deepEqual(f.trashed, [H + '/.claude/skills/paper-design']);
+  assert.deepEqual(f.trashed.map(posix), [H + '/.claude/skills/paper-design']);
 });
 
 test('paths outside the library roots and the plugin cache are refused', async () => {

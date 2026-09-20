@@ -4,6 +4,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createReviewProfile } from '../src/main/review-profile.js';
+// createReviewProfile resolves a root-relative homePath (as these fixtures
+// use) with path.resolve, which on Windows picks up the runner's drive
+// letter from cwd — while path.join never does. Strip it before comparing
+// against these platform-neutral literals.
+const posix = (p) => p.replace(/^[A-Za-z]:/, '').split(path.sep).join('/');
 
 test('normal launches retain packaged and development profile paths', () => {
   for (const packaged of [true, false]) {
@@ -44,7 +49,7 @@ test('persistent review storage is outside protected folders and survives cleanu
   const args={argv:['--review'],normalPath:'/normal',packaged:true,homePath:'/Users/reviewer'};
   const first=createReviewProfile(args),second=createReviewProfile(args);
   assert.equal(first.review,true);
-  assert.equal(first.path,'/Users/reviewer/Library/Application Support/ScalAI Review');
+  assert.equal(posix(first.path),'/Users/reviewer/Library/Application Support/ScalAI Review');
   assert.equal(second.path,first.path);
   first.cleanup();
 });
@@ -53,11 +58,11 @@ test('review launch refuses protected storage before touching it', () => {
     assert.throws(()=>createReviewProfile({argv:['--scene=browser','--user-data',`/Users/reviewer/${folder}/review`],normalPath:'/normal',packaged:true,homePath:'/Users/reviewer'}),/Review data must be outside/);
   }
   const allowed=createReviewProfile({argv:['--review','--user-data','/Users/reviewer/Desktop-copy/review'],normalPath:'/normal',packaged:true,homePath:'/Users/reviewer'});
-  assert.equal(allowed.path,'/Users/reviewer/Desktop-copy/review');
+  assert.equal(posix(allowed.path),'/Users/reviewer/Desktop-copy/review');
 });
 test('double-clicking the review package remains isolated without flags', () => {
   const profile=createReviewProfile({argv:[],normalPath:'/normal',packaged:true,reviewBuild:true,homePath:'/Users/reviewer'});
   assert.equal(profile.review,true);
-  assert.equal(profile.path,'/Users/reviewer/Library/Application Support/ScalAI Review');
+  assert.equal(posix(profile.path),'/Users/reviewer/Library/Application Support/ScalAI Review');
   profile.cleanup();
 });

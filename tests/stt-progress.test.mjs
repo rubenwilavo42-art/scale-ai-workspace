@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import store from '../src/main/stt-model.js';
 
 const { MODEL_FILES, ensureModel } = store;
@@ -43,7 +44,7 @@ test('every download event counts files, and counts them up to the total', async
 
 test('a half-finished folder counts only what is left to fetch', async () => {
   // two files already landed from an interrupted run
-  const done = MODEL_FILES.slice(0, 2).map((f) => `/m/${REPO}/${f}`);
+  const done = MODEL_FILES.slice(0, 2).map((f) => path.join('/m', REPO, f));
   const io = memIo(done), seen = [];
   await ensureModel({ dir: '/m', repo: REPO, fetchImpl: okFetch, io, onProgress: (p) => seen.push(p) });
 

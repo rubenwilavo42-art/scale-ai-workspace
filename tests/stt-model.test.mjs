@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import store from '../src/main/stt-model.js';
 
 const { MODEL_FILES, MODELS, modelById, isReady, ensureModel } = store;
@@ -64,7 +65,7 @@ test('a fetch that fails mid-set leaves no usable model and no final file', asyn
   assert.equal([...io.files].some((p) => p.endsWith('.ready')), false, 'no marker on a failed run');
   assert.equal([...io.files].some((p) => p.endsWith('.part')), false, 'no stray .part left behind');
   // the file that failed must not exist at its final path
-  const failed = `/m/${REPO}/${MODEL_FILES[2]}`;
+  const failed = path.join('/m', REPO, MODEL_FILES[2]);
   assert.equal(io.files.has(failed), false);
 });
 
@@ -80,7 +81,7 @@ test('a second call on a complete folder makes zero requests', async () => {
 test('a resumed download only fetches what is still missing', async () => {
   const io = memIo();
   // pretend an earlier run got the small files down but died before the weights
-  for (const f of MODEL_FILES.slice(0, 4)) io.files.add(`/m/${REPO}/${f}`);
+  for (const f of MODEL_FILES.slice(0, 4)) io.files.add(path.join('/m', REPO, f));
   const f = okFetch();
   await ensureModel({ dir: '/m', repo: REPO, fetchImpl: f, io });
   assert.equal(f.calls.length, MODEL_FILES.length - 4);
@@ -89,7 +90,7 @@ test('a resumed download only fetches what is still missing', async () => {
 
 test('files without the marker are not trusted — the set is completed first', async () => {
   const io = memIo();
-  for (const f of MODEL_FILES) io.files.add(`/m/${REPO}/${f}`);
+  for (const f of MODEL_FILES) io.files.add(path.join('/m', REPO, f));
   assert.equal(isReady({ dir: '/m', repo: REPO, io }), false, 'no marker means not ready');
   const f = okFetch();
   await ensureModel({ dir: '/m', repo: REPO, fetchImpl: f, io });
@@ -100,7 +101,7 @@ test('files without the marker are not trusted — the set is completed first', 
 test('a marker whose files went missing does not count as ready', async () => {
   const io = memIo();
   await ensureModel({ dir: '/m', repo: REPO, fetchImpl: okFetch(), io });
-  io.files.delete(`/m/${REPO}/onnx/encoder_model_quantized.onnx`);
+  io.files.delete(path.join('/m', REPO, 'onnx/encoder_model_quantized.onnx'));
   assert.equal(isReady({ dir: '/m', repo: REPO, io }), false);
 });
 
