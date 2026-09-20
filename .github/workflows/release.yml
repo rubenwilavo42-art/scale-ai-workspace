@@ -1,5 +1,5 @@
-# Publish unsigned review artifacts for every push to main: a macOS build and
-# a Windows build, both landing on the same rolling prerelease. Signing is a
+# Publish an unsigned macOS review build on every push to main, replacing
+# the previous release under a single rolling prerelease tag. Signing is a
 # deliberate later step, not a blocker to shipping something people can run.
 name: release
 
@@ -14,6 +14,8 @@ concurrency:
 jobs:
   build-mac:
     runs-on: macos-14
+    permissions:
+      contents: write
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -36,55 +38,6 @@ jobs:
       - name: Check the packaged bundle
         run: node scripts/check-bundle.mjs
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-mac
-          path: |
-            release-review/*.dmg
-            release-review/*.zip
-            release-review/*.blockmap
-          if-no-files-found: error
-
-  build-win:
-    runs-on: windows-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-      - run: npm test
-
-      - name: Build unsigned Windows review artifacts
-        run: npm run dist:review:win
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: release-win
-          path: |
-            release-review/*.exe
-            release-review/*.blockmap
-          if-no-files-found: error
-
-  publish:
-    needs: [build-mac, build-win]
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    timeout-minutes: 15
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: release-*
-          path: dist
-          merge-multiple: true
-
       # A single rolling tag, moved to the pushed commit on every run, so
       # "à chaque modification" doesn't grow a release per commit forever.
       # The tag is force-pushed and the previous release under it replaced.
@@ -97,6 +50,6 @@ jobs:
             --repo ${{ github.repository }} \
             --prerelease \
             --title "ScalAI (continuous build)" \
-            --notes "Unsigned macOS + Windows test build from ${{ github.sha }}." \
+            --notes "Unsigned macOS test build from ${{ github.sha }}." \
             --target "${{ github.sha }}" \
-            dist/*.dmg dist/*.zip dist/*.exe dist/*.blockmap
+            release-review/*.dmg release-review/*.zip release-review/*.blockmap
