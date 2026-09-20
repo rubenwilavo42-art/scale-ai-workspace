@@ -16,7 +16,10 @@ function fakeOps(existing = []) {
   const calls = { writes: [], mkdirs: [], renames: [], copies: [] };
   return {
     calls,
-    exists: (p) => existing.includes(p),
+    // `p` here is whatever fs-actions.js resolved (drive-lettered on
+    // Windows); `existing` is authored as plain POSIX literals, so fold `p`
+    // back to that form before matching.
+    exists: (p) => existing.includes(posix(p)),
     mkdir: (p) => calls.mkdirs.push(p),
     writeFile: (p) => calls.writes.push(p),
     rename: (a, b) => calls.renames.push([a, b]),
